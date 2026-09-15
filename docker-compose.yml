@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: authforge
+      POSTGRES_USER: authforge
+      POSTGRES_PASSWORD: change_me
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  auth-api:
+    build: .
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: authforge
+      DATABASE_USER: authforge
+      DATABASE_PASSWORD: change_me
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: replace_with_long_random_secret_at_least_32_chars
+      JWT_ACCESS_EXPIRES_IN: 15m
+      MFA_CHALLENGE_EXPIRES_IN: 5m
+      REFRESH_SESSION_DAYS: 7
+      MFA_ENCRYPTION_KEY: replace_with_32_byte_base64_key
+      CORS_ORIGIN: http://localhost:3001
+      COOKIE_SECURE: "false"
+      COOKIE_SAME_SITE: lax
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
+  redis_data:
