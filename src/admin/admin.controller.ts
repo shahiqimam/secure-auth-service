@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuditService } from '../audit/audit.service';
 import { AuditEventType } from '../audit/security-audit-event.entity';
@@ -8,6 +8,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Role } from '../common/roles';
 import { UserStatus } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
+import { UpdateUserRolesDto } from './dto/update-user-roles.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -31,14 +32,31 @@ export class AdminController {
   }
 
   @Patch('users/:id/role')
-  async setRole(@Param('id') id: string, @Body('roles') roles: Role[]) {
-    const user = await this.users.setRoles(id, roles);
-    await this.audit.record({ userId: id, eventType: AuditEventType.RoleChanged, metadata: { roles } });
+  async setRole(@Param('id') id: string, @Body() dto: UpdateUserRolesDto) {
+    const existing = await this.users.findById(id);
+    if (
+      existing?.status === UserStatus.Active &&
+      existing.roles.includes(Role.Admin) &&
+      !dto.roles.includes(Role.Admin) &&
+      (await this.users.countActiveAdmins()) <= 1
+    ) {
+      throw new BadRequestException('Cannot remove the final active admin');
+    }
+    const user = await this.users.setRoles(id, dto.roles);
+    await this.audit.record({ userId: id, eventType: AuditEventType.RoleChanged, metadata: { roles: dto.roles } });
     return this.users.toSafeUser(user);
   }
 
   @Post('users/:id/disable')
   async disable(@Param('id') id: string) {
+    const existing = await this.users.findById(id);
+    if (
+      existing?.status === UserStatus.Active &&
+      existing.roles.includes(Role.Admin) &&
+      (await this.users.countActiveAdmins()) <= 1
+    ) {
+      throw new BadRequestException('Cannot disable the final active admin');
+    }
     const user = await this.users.setStatus(id, UserStatus.Disabled);
     await this.audit.record({ userId: id, eventType: AuditEventType.UserDisabled });
     return this.users.toSafeUser(user);

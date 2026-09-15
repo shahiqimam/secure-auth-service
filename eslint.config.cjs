@@ -23,6 +23,13 @@ module.exports = [
         console: 'readonly',
         process: 'readonly',
         __dirname: 'readonly',
+        describe: 'readonly',
+        it: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        jest: 'readonly',
       },
     },
     plugins: {

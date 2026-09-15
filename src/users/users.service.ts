@@ -57,6 +57,14 @@ export class UsersService {
     return users.map((user) => this.toSafeUser(user));
   }
 
+  countActiveAdmins() {
+    return this.users
+      .createQueryBuilder('user')
+      .where(':role = ANY(user.roles)', { role: Role.Admin })
+      .andWhere('user.status = :status', { status: UserStatus.Active })
+      .getCount();
+  }
+
   async setStatus(id: string, status: UserStatus) {
     const user = await this.findById(id);
     if (!user) throw new NotFoundException('User not found');
